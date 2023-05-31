@@ -100,8 +100,8 @@ public:
 	static void textsize(const String &s, int & width, int & height);
 
 	VideoBuffer DumpFrame();
-	uint32_t* DumpFrameARGB32(int x1, int y1, int x2, int y2);
-	uint8_t* DumpFrameRGBA8(int x1, int y1, int x2, int y2);
+	uint32_t* DumpFrameARGB(int x1, int y1, int x2, int y2);
+	uint32_t* DumpFrameRGBA(int x1, int y1, int x2, int y2);
 
 	void blendpixel(int x, int y, int r, int g, int b, int a);
 	void addpixel(int x, int y, int r, int g, int b, int a);

@@ -54,8 +54,7 @@ void RecordMenu::StateChanged()
 	bool rec = RecordingActive(newStage);
 	bool pas = newStage == RecordStage::Paused;
 	bool old = rs.format == RecordFormat::Old;
-	bool comEn = !rec && rs.stage != RecordStage::Writing;
-	bool oldEn = comEn && !old;
+	bool stop = !rec && rs.stage != RecordStage::Writing;
 
 	bool fullscreen = rs.x1 == 0 && rs.y1 == 0 && rs.x2 == WINDOWW && rs.y2 == WINDOWH;
 
@@ -67,33 +66,32 @@ void RecordMenu::StateChanged()
 	{
 		rs.x1 = 0;
 		rs.y1 = 0;
-		rs.x2 = XRES;
-		rs.y2 = YRES;
-		rs.RecalcPos();
+		rs.x2 = WINDOWW;
+		rs.y2 = WINDOWH;
 	}
-	bool positionChanged = rs.x1 != 0 || rs.y1 != 0 || rs.x2 != XRES || rs.y2 != YRES;
-	selectButton->Enabled = !fullscreen && oldEn;
+	bool positionChanged = (rs.x1 != 0 || rs.y1 != 0 || rs.x2 != XRES || rs.y2 != YRES) && !old;
+	selectButton->Enabled = stop && !old && !fullscreen;
 	selectButton->Appearance.BackgroundInactive = positionChanged ? ui::Colour(47, 47, 23) : ui::Colour(0, 0, 0);
 	selectButton->Appearance.BackgroundHover = positionChanged ? ui::Colour(63, 63, 31) : ui::Colour(20, 20, 20);
 
 	// FPS Label
-	fpsLabel->SetTextColour(col(comEn));
+	fpsLabel->SetTextColour(col(stop));
 
 	// FPS Textbox
-	fpsTextbox->Enabled = comEn;
-	fpsTextbox->ReadOnly = !comEn;
+	fpsTextbox->Enabled = stop;
+	fpsTextbox->ReadOnly = !stop;
 	fpsTextbox->SetText(String::Build(rs.fps));
-	fpsTextbox->SetTextColour(col(comEn));
+	fpsTextbox->SetTextColour(col(stop));
 
 	// Fullscreen Label
-	fullscreenLabel->SetTextColour(col(oldEn));
+	fullscreenLabel->SetTextColour(col(stop && !old));
 
 	// Fullscreen Checkbox
-	fullscreenCheckbox->Enabled = oldEn;
+	fullscreenCheckbox->Enabled = stop && !old;
 	fullscreenCheckbox->SetChecked(fullscreen && !old);
 
 	// Include UI Label
-	includeUILabel->SetTextColour(col(oldEn && !fullscreen));
+	includeUILabel->SetTextColour(col(stop && !old && !fullscreen));
 
 	// Include UI Checkbox
 	if (old)
@@ -104,36 +102,32 @@ void RecordMenu::StateChanged()
 	{
 		rs.includeUI = true;
 	}
-	includeUICheckbox->Enabled = oldEn && !fullscreen;
+	includeUICheckbox->Enabled = stop && !old && !fullscreen;
 	includeUICheckbox->SetChecked(rs.includeUI);
 
 	// Scale Label
-	scaleLabel->SetTextColour(col(oldEn));
+	scaleLabel->SetTextColour(col(stop && !old));
 
 	// Scale Dropdown
 	if (old)
 	{
 		rs.scale = 1;
 	}
-	scaleDropdown->Enabled = oldEn;
+	scaleDropdown->Enabled = stop && !old;
 	scaleDropdown->SetOption(rs.spacing ? -8 : rs.scale);
 
 	// Format Label
-	formatLabel->SetTextColour(col(comEn));
+	formatLabel->SetTextColour(col(stop));
 
 	// Format Dropdown
-	formatDropdown->Enabled = comEn;
+	formatDropdown->Enabled = stop;
 	formatDropdown->SetOption(rs.format);
 
 	// Buffer Label
-	bufferLabel->SetTextColour(col(oldEn));
+	bufferLabel->SetTextColour(col(stop));
 
 	// Buffer Dropdown
-	if (old)
-	{
-		rs.buffer = RecordBuffer::Off;
-	}
-	bufferDropdown->Enabled = oldEn;
+	bufferDropdown->Enabled = stop;
 	bufferDropdown->SetOption(rs.buffer);
 
 	// Buffer Usage Label
@@ -146,24 +140,23 @@ void RecordMenu::StateChanged()
 	{
 		int usage = ((rs.x2 - rs.x1) * (rs.y2 - rs.y1) * rs.fps * 4) / 1048576; // MB/sec;
 		bufferUsageLabel->SetText(usage ? String::Build("Usage: ", usage, " MB/sec") : "Usage: <1 MB/sec");
-		bufferUsageLabel->SetTextColour(usage > 100 && oldEn ? ui::Colour(255, 63, 63) : col(comEn));
+		bufferUsageLabel->SetTextColour(usage > 100 && stop ? ui::Colour(255, 63, 63) : col(stop));
 	}
 
 	// Buffer Usage Button
-	bufferUsageButton->Enabled = rs.buffer != RecordBuffer::Off && oldEn;
+	bufferUsageButton->Enabled = rs.buffer != RecordBuffer::Off && stop;
 	bufferUsageButton->Appearance.BackgroundInactive = rs.bufferLimit ? ui::Colour(47, 47, 23) : ui::Colour(0, 0, 0);
 	bufferUsageButton->Appearance.BackgroundHover = rs.bufferLimit ? ui::Colour(63, 63, 31) : ui::Colour(20, 20, 20);
 
 	// Write Thread Label
-	writeThreadLabel->SetTextColour(rs.buffer == RecordBuffer::Off ? ui::Colour(100, 100, 100) : col(oldEn));
+	writeThreadLabel->SetTextColour(rs.buffer == RecordBuffer::Off ? ui::Colour(100, 100, 100) : col(stop));
 
 	// Write Thread Checkbox
-	bool allowWT = rs.buffer != RecordBuffer::Off;
-	if (!allowWT)
+	if (rs.buffer == RecordBuffer::Off)
 	{
 		rs.writeThread = false;
 	}
-	writeThreadCheckbox->Enabled = allowWT ? oldEn : false;
+	writeThreadCheckbox->Enabled = rs.buffer != RecordBuffer::Off && stop;
 	writeThreadCheckbox->SetChecked(rs.writeThread);
 
 	// Quality Label
@@ -175,10 +168,10 @@ void RecordMenu::StateChanged()
 	{
 		qualityLabel->SetText("Compres. (-):");
 	}
-	qualityLabel->SetTextColour(oldEn && rs.format == RecordFormat::WebP ? ui::Colour(255, 255, 255) : ui::Colour(100, 100, 100));
+	qualityLabel->SetTextColour(stop && rs.format == RecordFormat::WebP ? ui::Colour(255, 255, 255) : ui::Colour(100, 100, 100));
 
 	// Quality Slider
-	qualitySlider->Enabled = oldEn && rs.format == RecordFormat::WebP;
+	qualitySlider->Enabled = stop && rs.format == RecordFormat::WebP;
 	qualitySlider->SetValue(rs.format == RecordFormat::WebP ? rs.quality : 10);
 	if (qualitySlider->Enabled)
 	{
@@ -193,7 +186,7 @@ void RecordMenu::StateChanged()
 	}
 
 	// Reset Button
-	resetButton->Enabled = comEn;
+	resetButton->Enabled = stop;
 
 	// Pause Button
 	pauseButton->Enabled = rec;
@@ -274,7 +267,7 @@ RecordMenu::RecordMenu() :
 			"*** Slows write performance with large areas ***\n\bw\t",
 			"Duplicates pixels to make recording larger. Useful if blurry when being upscaled. \"8+Spacing\" adds black areas between pixels (like zoom window).\n\bo",
 			"Format:\n\bw\t",
-			"Output image format. WebP is much slower at processing frames with long recordings but is lossless. Gif framerate may be incorrect due to precision limitations (10ms increments). Old disables all settings except FPS.\n\bo",
+			"Output image format. WebP is much slower at processing frames with long recordings but is lossless. Gif framerate may be incorrect due to precision limitations (10ms increments). Old replicates tpt.record() recordings, but disables most settings and creates many uncompressed files.\n\bo",
 			"Buffer:\n\bw\t",
 			"Stores image data before processing to improve performance while recording. Final image is created after recording stops. Ram stores data in memory and is fast, but may use large amounts of ram. Disk stores data in the recordings folder temporarily. Size depends on area.\n\bo",
 			"Buffer Usage/Limit:\n\bl\t",
@@ -341,7 +334,6 @@ RecordMenu::RecordMenu() :
 		bool checked = fullscreenCheckbox->GetChecked();
 		rs.x2 = checked ? WINDOWW : XRES;
 		rs.y2 = checked ? WINDOWH : YRES;
-		rs.RecalcPos();
 		StateChanged();
 	} });
 

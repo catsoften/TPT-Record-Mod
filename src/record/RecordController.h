@@ -1,15 +1,13 @@
-#ifndef RECORDCONTROLLER_H
-#define RECORDCONTROLLER_H
-#include "Config.h"
-
-#include "common/Singleton.h"
-
-#include "RecordState.h"
+#pragma once
 
 #include <cstdint>
 #include <vector>
 #include <functional>
 #include <mutex>
+
+#include "common/Singleton.h"
+
+#include "RecordState.h"
 
 #include "msf_gif.h"
 
@@ -51,6 +49,6 @@ public:
 
 	void SetCallback(RecordProgressCallback newCallback);
 	void CancelWrite();
-};
 
-#endif /* RECORDCONTROLLER_H */
+	~RecordController();
+};

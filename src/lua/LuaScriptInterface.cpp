@@ -4070,7 +4070,7 @@ int LuaScriptInterface::record_area(lua_State* l)
 		rs.y1 = y1;
 		rs.x2 = x2;
 		rs.y2 = y2;
-		rs.RecalcPos();
+		rs.CheckBounds();
 		return 0;
 	}
 	else if (argCount == 0)

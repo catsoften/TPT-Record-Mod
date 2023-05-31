@@ -1,6 +1,4 @@
-#ifndef RECORDSTATE_H
-#define RECORDSTATE_H
-#include "Config.h"
+#pragma once
 
 #include <atomic>
 
@@ -34,7 +32,7 @@ struct RecordState
 	int BufferSize();
 
 	void TogglePause();
-	void RecalcPos(bool inclusive = false);
+	void CheckBounds(bool inclusive = false);
 
 	void ClearCounters();
 	void Clear();
@@ -72,5 +70,3 @@ struct RecordState
 	int ratio; // Calculated from FPS, frame skip ratio
 	int ratioFrame; // Used when skipping frames
 };
-
-#endif /* RECORDSTATE_H */

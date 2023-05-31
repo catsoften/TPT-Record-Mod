@@ -61,7 +61,7 @@ static int update(UPDATE_FUNC_ARGS)
 	if (sim->elementCount[PT_SPNG])
 	{
 		int r, r2, rx, ry;
-		r = pmap[std::min(std::max(0, parts[i].tmp2), YRES - 1)][std::min(std::max(0, parts[i].tmp), XRES - 1)];
+		r = pmap[std::clamp(parts[i].tmp2, 0, YRES - 1)][std::clamp(parts[i].tmp, 0, XRES - 1)];
 		if (!r || TYP(r) != PT_SPNG)
 		{
 			int foundId = -1;

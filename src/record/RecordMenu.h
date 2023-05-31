@@ -1,6 +1,4 @@
-#ifndef RECORDMENU_H
-#define RECORDMENU_H
-#include "Config.h"
+#pragma once
 
 #include "RecordState.h"
 
@@ -59,5 +57,3 @@ class RecordMenu : public ui::Window
 public:
 	RecordMenu();
 };
-
-#endif /* RECORDMENU_H */

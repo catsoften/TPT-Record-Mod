@@ -1236,7 +1236,7 @@ void GameView::OnMouseUp(int x, int y, unsigned button)
 						rs.y1 = y1;
 						rs.x2 = x2;
 						rs.y2 = y2;
-						rs.RecalcPos(true);
+						rs.CheckBounds(true);
 					}
 				}
 			}

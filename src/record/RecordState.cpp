@@ -1,4 +1,5 @@
 #include "RecordState.h"
+#include "Config.h"
 
 #include <cmath>
 #include <algorithm>
@@ -35,16 +36,16 @@ void RecordState::TogglePause()
 	}
 }
 
-void RecordState::RecalcPos(bool inclusive)
+void RecordState::CheckBounds(bool inclusive)
 {
 	int ox1 = x1 == -1 ? 0 : x1;
 	int oy1 = y1 == -1 ? 0 : y1;
 	int ox2 = x2 == -1 ? WINDOWW : x2;
 	int oy2 = y2 == -1 ? WINDOWH : y2;
-	x1 = std::min(std::max(ox2 > ox1 ? ox1 : ox2, 0), WINDOWW);
-	x2 = std::min(std::max(ox2 > ox1 ? ox2 : ox1, x1 + 1), WINDOWW) + (inclusive ? 1 : 0);
-	y1 = std::min(std::max(oy2 > oy1 ? oy1 : oy2, 0), WINDOWH);
-	y2 = std::min(std::max(oy2 > oy1 ? oy2 : oy1, y1 + 1), WINDOWH) + (inclusive ? 1 : 0);
+	x1 = std::clamp((ox2 > ox1 ? ox1 : ox2), 0, WINDOWW - 2);
+	x2 = std::clamp((ox2 > ox1 ? ox2 : ox1) + (inclusive ? 1 : 0), x1 + 1, WINDOWW - 1);
+	y1 = std::clamp((oy2 > oy1 ? oy1 : oy2), 0, WINDOWH - 2);
+	y2 = std::clamp((oy2 > oy1 ? oy2 : oy1) + (inclusive ? 1 : 0), y1 + 1, WINDOWH - 1);
 }
 
 void RecordState::ClearCounters()
@@ -66,7 +67,6 @@ void RecordState::Clear()
 	y1 = 0;
 	x2 = XRES;
 	y2 = YRES;
-	RecalcPos();
 	scale = 1;
 	spacing = false;
 	includeUI = false;

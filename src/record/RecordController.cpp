@@ -105,75 +105,78 @@ void RecordController::WriteFrameCurrent(uint32_t* buffer)
 			}
 			break;
 
-			case RecordFormat::Old:
-				std::cerr << "[RECORDMOD] WARN: Attempted to call RecordController::WriteFrameCurrent with old format" << std::endl;
-				break;
+		case RecordFormat::Old:
+			{
+				VideoBuffer screenshot((pixel*)buffer, sxs, sys);
+				std::vector<char> data = format::VideoBufferToPPM(screenshot);
+				ByteString path = ByteString::Build("recordings", PATH_SEP, rs.file, PATH_SEP, "frame_", Format::Width(rs.frame++, 6), ".ppm");
+				Platform::WriteFile(data, path);
+			}
+			break;
 	}
 	delete[] buffer;
 }
 
 void RecordController::StopRecordingCurrent()
 {
-	if (rs.format != RecordFormat::Old)
+	const char* extension = "";
+	switch (rs.format)
 	{
-		const char* extension = "";
-		switch (rs.format)
+		case RecordFormat::Gif:
+			extension = ".gif";
+			break;
+
+		case RecordFormat::WebP:
+			extension = ".webp";
+			break;
+
+		case RecordFormat::Old:
+			return;
+			break;
+	}
+
+	try
+	{
+		std::ofstream outFile(ByteString::Build("recordings", PATH_SEP, rs.file, extension), std::ios::binary | std::ios::trunc);
+		if(outFile.is_open())
 		{
-			case RecordFormat::Gif:
-				extension = ".gif";
-				break;
-
-			case RecordFormat::WebP:
-				extension = ".webp";
-				break;
-
-			case RecordFormat::Old:
-				std::cerr << "[RECORDMOD] WARN: Attempted to call RecordController::StopRecordingCurrent with old format" << std::endl;
-				break;
-		}
-
-		try
-		{
-			std::ofstream outFile(ByteString::Build("recordings", PATH_SEP, rs.file, extension), std::ios::binary | std::ios::trunc);
-			if(outFile.is_open())
+			switch (rs.format)
 			{
-				switch (rs.format)
-				{
-					case RecordFormat::WebP:
-						{
-							WebPAnimEncoderAdd(enc, NULL, rs.frame * (int)rs.delay, NULL);
-							WebPData webp_data;
-							WebPDataInit(&webp_data);
-							WebPAnimEncoderAssemble(enc, &webp_data);
-							WebPAnimEncoderDelete(enc);
-							outFile.write((const char*)webp_data.bytes, webp_data.size);
-							WebPDataClear(&webp_data);
-						}
-						break;
+				case RecordFormat::WebP:
+					{
+						WebPAnimEncoderAdd(enc, NULL, rs.frame * (int)rs.delay, NULL);
+						WebPData webp_data;
+						WebPDataInit(&webp_data);
+						WebPAnimEncoderAssemble(enc, &webp_data);
+						WebPAnimEncoderDelete(enc);
+						outFile.write((const char*)webp_data.bytes, webp_data.size);
+						WebPDataClear(&webp_data);
+					}
+					break;
 
-					case RecordFormat::Gif:
-						{
-							MsfGifResult result = msf_gif_end(gifState);
-							delete gifState;
-							outFile.write((const char*)result.data, result.dataSize);
-							msf_gif_free(result);
-						}
-						break;
+				case RecordFormat::Gif:
+					{
+						MsfGifResult result = msf_gif_end(gifState);
+						delete gifState;
+						outFile.write((const char*)result.data, result.dataSize);
+						msf_gif_free(result);
+					}
+					break;
 
-					case RecordFormat::Old:
-						break; // Compiler error
-				}
-				outFile.close();
+				case RecordFormat::Old:
+					return;
+					break;
 			}
-			else
-			{
-				std::cerr << "RecordController::StopRecordingCurrent->Fail: " << std::endl;
-			}
+			outFile.close();
 		}
-		catch (const std::exception& e)
+		else
 		{
-			std::cerr << "RecordController::StopRecordingCurrent->Catch: " << e.what() << std::endl;
+			std::cerr << "RecordController::StopRecordingCurrent->Fail: " << std::endl;
 		}
+	}
+	catch (const std::exception& e)
+	{
+		std::cerr << "RecordController::StopRecordingCurrent->Catch: " << e.what() << std::endl;
 	}
 }
 
@@ -199,6 +202,7 @@ void RecordController::StartWriteThread()
 					}
 					bufferDataMutex.lock();
 					uint32_t* buffer = bufferData[rs.frame];
+					bufferData[rs.frame] = nullptr;
 					bufferDataMutex.unlock();
 					WriteFrameCurrent(buffer);
 					CallCallback();
@@ -288,15 +292,17 @@ void RecordController::CallCallback()
 
 void RecordController::FreeRemaining()
 {
-	int oldFrame = rs.frame;
 	bufferDataMutex.lock();
-	for ( ; rs.frame < rs.nextFrame; rs.frame++)
+	for (unsigned int i = 0; i < bufferData.size(); i++)
 	{
-		delete[] bufferData[rs.frame];
+		if (bufferData[i])
+		{
+			delete[] bufferData[i];
+			bufferData[i] = nullptr;
+		}
 	}
 	bufferDataMutex.unlock();
-	rs.frame = oldFrame;
-	rs.nextFrame = oldFrame + 1;
+	rs.nextFrame = rs.frame + 1;
 }
 
 void RecordController::StartRecording()
@@ -330,24 +336,12 @@ void RecordController::WriteFrame(Graphics* g)
 	switch (rs.format)
 	{
 		case RecordFormat::Gif:
-			buffer = (uint32_t*)g->DumpFrameRGBA8(rs.x1, rs.y1, rs.x2, rs.y2);
+			buffer = g->DumpFrameRGBA(rs.x1, rs.y1, rs.x2, rs.y2);
 			break;
 
 		case RecordFormat::WebP:
-			buffer = g->DumpFrameARGB32(rs.x1, rs.y1, rs.x2, rs.y2);
-			break;
-
 		case RecordFormat::Old:
-			{
-				VideoBuffer screenshot(g->DumpFrame());
-				std::vector<char> data = format::VideoBufferToPPM(screenshot);
-				int tempFrame = rs.frame;
-				ByteString filename = ByteString::Build("recordings", PATH_SEP, rs.file, PATH_SEP, "frame_", Format::Width(tempFrame, 6), ".ppm");
-				Platform::WriteFile(data, filename);
-			}
-			rs.frame++;
-			rs.nextFrame++;
-			return;
+			buffer = g->DumpFrameARGB(rs.x1, rs.y1, rs.x2, rs.y2);
 			break;
 	}
 
@@ -422,4 +416,9 @@ void RecordController::SetCallback(RecordProgressCallback newCallback)
 void RecordController::CancelWrite()
 {
 	stopWrite = true;
+}
+
+RecordController::~RecordController()
+{
+	FreeRemaining();
 }
